@@ -235,8 +235,9 @@ function sbar(el, sp, labels = true) {
   const parts = HK.filter(h => sp[h[0]] > 0).map(h => `<i style="width:${sp[h[0]]}%;background:${h[2]}" title="${h[1]} ${sp[h[0]]}%">${labels && sp[h[0]] >= 8 ? h[1] + ' ' + sp[h[0]] + '%' : ''}</i>`);
   el.innerHTML = parts.join('') + `<i style="width:10%;background:#21414d;color:#8aa3ad" title="Paird 10%">${labels ? 'Paird 10%' : ''}</i>`;
 }
+let CURSP = PRESETS.holders;
 function preset(p) {
-  const sp = PRESETS[p]; sbar($('#sbar'), sp);
+  const sp = PRESETS[p]; CURSP = sp; sbar($('#sbar'), sp);
   $('#sleg').innerHTML = HK.filter(h => sp[h[0]]).map(h => `<span style="--c:${h[2]}">${h[1]} ${sp[h[0]]}%</span>`).join('') + '<span style="--c:#21414d">Paird 10%</span>';
   $$('#preset button').forEach(b => b.classList.toggle('on', b.dataset.p === p));
 }
@@ -620,7 +621,7 @@ function route() {
 }
 addEventListener('hashchange', route);
 let IO = null;
-function revealAll() { if (!('IntersectionObserver' in window)) { $$('.rv').forEach(e => e.classList.add('rv-in')); return } if (!IO) IO = new IntersectionObserver(es => es.forEach(x => { if (x.isIntersecting) { x.target.classList.add('rv-in'); IO.unobserve(x.target) } }), { rootMargin: '0px 0px -40px 0px' }); $$('.rv:not(.rv-in)').forEach(e => IO.observe(e)) }
+function revealAll() { if (!('IntersectionObserver' in window)) { $$('.rv').forEach(e => e.classList.add('rv-in')); return } if (!IO) IO = new IntersectionObserver(es => es.forEach(x => { if (x.isIntersecting) { if (x.target.classList.contains('stg')) [...x.target.children].forEach((c, i) => c.style.setProperty('--i', i)); x.target.classList.add('rv-in'); IO.unobserve(x.target) } }), { rootMargin: '0px 0px -40px 0px' }); $$('.rv:not(.rv-in)').forEach(e => IO.observe(e)) }
 
 /* hero pixel field */
 (function field() {
@@ -678,6 +679,113 @@ function revealAll() { if (!('IntersectionObserver' in window)) { $$('.rv').forE
   D.forEach(d => d.addEventListener('toggle', syncAll));
 })();
 
+
+/* =================== motion & scroll =================== */
+(function motion() {
+  const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const clampN = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v)), seg = (p, a, b) => clampN((p - a) / (b - a));
+  const eio = k => k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+  const prog = $('#sprog'), totop = $('#totop'), hero = $('.machine'), dots = $('#sdots');
+  totop.onclick = () => scrollTo({ top: 0, behavior: 'smooth' });
+  // side dots: where you are on the home page
+  const SECS = [['Top', '.machine'], ['Pairs', '#pairsSec'], ['Live', '#jpSec'], ['PvP', '#pvpSec'], ['How', '#howSec'], ['Map', '#mapSec'], ['Exchange', '#market']];
+  dots.innerHTML = SECS.map(([n, sel], i) => `<a href="#" data-sec="${i}"><span>${n}</span><i></i></a>`).join('');
+  dots.addEventListener('click', e => { const a = e.target.closest('[data-sec]'); if (!a) return; e.preventDefault(); const el = $(SECS[+a.dataset.sec][1]); if (el) scrollTo({ top: el.getBoundingClientRect().top + scrollY - 80, behavior: 'smooth' }) });
+  // the PvP story, scrubbed by scroll
+  const pv = $('#pvpSec'), arena = $('#arena'), A = { main: $('#acMain'), c1: $('#acC1'), c2: $('#acC2'), c3: $('#acC3'), me: $('#acMe'), link: $('#aLink'), flow: $('#aFlow') };
+  const PH = [[0, '01 · the run', 'A coin runs.', "It's working. Buyers pile in, the chart goes vertical, and everyone on the timeline sees it."],
+    [.22, '02 · the copies', 'Then the copies launch.', 'Same name, same narrative, same buyers, split three, five, ten ways. Every copy is a bet against the original.'],
+    [.48, '03 · the PvP', 'Most of them die.', 'The copies bleed each other out. Holders of the wrong one are left with nothing, and the original takes the hit too.'],
+    [.7, '04 · paird', 'Or pair with it.', 'Launch $YOURS paired with $CAT. Every buy of $YOURS buys $CAT first, and its fees pay your holders in $CAT. Both charts win.']];
+  let phase = -1;
+  const place = (el, x, y, s = 1, r = 0, o = 1, f = '') => { el.style.transform = `translate(${x}px,${y}px) translate(-50%,-50%) scale(${s}) rotate(${r}deg)`; el.style.opacity = o; el.style.filter = f };
+  function pvp() {
+    if (!pv || VIEW !== 'home') return;
+    const r = pv.getBoundingClientRect(), H = innerHeight, p = clampN(-r.top / Math.max(1, r.height - H + 120));
+    if (r.bottom < 0 || r.top > H) return;
+    const ph = PH.reduce((a, x, i) => p >= x[0] ? i : a, 0);
+    if (ph !== phase) { phase = ph; $('#pvK').textContent = PH[ph][1]; $('#pvH').textContent = PH[ph][2]; $('#pvP').textContent = PH[ph][3]; $('#pvH').animate([{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], { duration: 380, easing: 'cubic-bezier(.2,.8,.2,1)' }) }
+    $('#pvBar').style.transform = `scaleX(${p})`;
+    const W = arena.clientWidth, Hh = arena.clientHeight, cx = W / 2, cy = Hh * .46;
+    // 1) the run: $CAT rises and glows
+    const run = eio(seg(p, 0, .18)), split = eio(seg(p, .7, .86));
+    arena.style.setProperty('--g', (run * (1 - seg(p, .3, .5) * .5)).toFixed(3));
+    place(A.main, cx - split * W * .2, cy + 30 * (1 - run) - Math.sin(p * 40) * 2 * seg(p, .22, .5) * (1 - seg(p, .5, .6)), .9 + run * .15, 0, .4 + run * .6);
+    // 2) the copies fly in and crowd it, 3) then they die
+    const cin = eio(seg(p, .2, .44)), die = eio(seg(p, .5, .68));
+    [[A.c1, -1, -.6, -14], [A.c2, 1, -.5, 12], [A.c3, 0, 1, -8]].forEach(([el, dx, dy, rot], i) => {
+      const sx = cx + dx * W * .7, sy = cy + dy * Hh * .7, tx = cx + dx * W * .25 + (i === 2 ? 0 : 0), ty = cy + dy * Hh * .27 + (i === 2 ? 20 : 0);
+      const jit = cin >= 1 && die <= 0 ? Math.sin(p * 90 + i * 2) * 3 : 0;
+      place(el, sx + (tx - sx) * cin + jit, sy + (ty - sy) * cin + die * 120, .9 + cin * .1 - die * .2, rot * (1 - cin) + die * (i === 1 ? 24 : -20), cin * (1 - die * .85), die > 0 ? `grayscale(${die}) blur(${die * 2}px)` : '');
+    });
+    // 4) $YOURS pairs with $CAT
+    place(A.me, cx + W * .2 + (1 - split) * W * .5, cy, .9 + split * .1, 0, split);
+    const lk = eio(seg(p, .8, .92)); place(A.link, cx, cy, .4 + lk * .6, (1 - lk) * -90, lk);
+    A.flow.style.opacity = seg(p, .88, .96);
+  }
+  // live pairs marquee that speeds up with your scroll
+  const vt = $('#vtrack'); let vx = 0, vdir = -1, vkey = '', vw = 0;
+  function vfill() {
+    const L = window.__mxPairs ? window.__mxPairs() : []; if (!L.length) return;
+    const key = L.map(x => x.k).join(); if (key === vkey) return; vkey = key;
+    const one = L.map(x => { const c = ALL.get(x.k); return c ? `<a class="vi" href="#/coin/${c.mint}"><span class="pr2">${img(c, '', '', 's')}<i class="lk"></i><img src="${esc(x.q)}" alt="" onerror="this.style.visibility='hidden'"></span>$${esc((c.sym || '').slice(0, 10))}<em>× ${esc(c.quote)}</em></a>` : '' }).join('');
+    vt.innerHTML = one + one; requestAnimationFrame(() => { vw = vt.scrollWidth / 2 });
+  }
+  setInterval(vfill, 4000); setTimeout(vfill, 1500);
+  // fee flow: creator fees streaming into the payouts you picked
+  const fc = $('#flow'), fx = fc.getContext('2d'); let fvis = false, parts = [], W8 = { holders: 0, drop: 0, burn: 0, you: 0, team: 0, paird: 10 };
+  if ('IntersectionObserver' in window) new IntersectionObserver(e => { fvis = e[0].isIntersecting }).observe(fc);
+  const BK = () => [...HK.map(h => [h[0], h[1], h[2]]), ['paird', 'Paird', '#21414d']];
+  function flow(dt) {
+    if (!fvis || VIEW !== 'home') return;
+    const D = Math.min(2, devicePixelRatio || 1), Wc = fc.clientWidth, Hc = fc.clientHeight; if (fc.width !== Math.round(Wc * D)) { fc.width = Wc * D; fc.height = Hc * D }
+    fx.setTransform(D, 0, 0, D, 0, 0); fx.clearRect(0, 0, Wc, Hc);
+    const B = BK(); B.forEach(([k]) => { const t = k === 'paird' ? 10 : (CURSP[k] || 0); W8[k] += (t - W8[k]) * Math.min(1, dt * 4) });
+    const sx = 120, sy = Hc / 2, ex = Wc - 150, gap = Hc / (B.length + 1);
+    // source node
+    fx.fillStyle = '#112529'; fx.strokeStyle = '#21414d'; fx.lineWidth = 1; fx.beginPath(); fx.roundRect ? fx.roundRect(16, sy - 26, sx - 30, 52, 12) : fx.rect(16, sy - 26, sx - 30, 52); fx.fill(); fx.stroke();
+    fx.fillStyle = '#f3f8f8'; fx.font = '800 13px Inter'; fx.textAlign = 'center'; fx.fillText('Creator fees', 16 + (sx - 30) / 2, sy - 2); fx.fillStyle = '#8aa3ad'; fx.font = '600 11px Inter'; fx.fillText('every trade', 16 + (sx - 30) / 2, sy + 14);
+    B.forEach(([k, n, c], i) => {
+      const y = gap * (i + 1), w8 = W8[k];
+      fx.strokeStyle = c; fx.globalAlpha = .12 + w8 / 100 * .5; fx.lineWidth = 1 + w8 / 9;
+      fx.beginPath(); fx.moveTo(sx - 14, sy); fx.bezierCurveTo((sx + ex) / 2, sy, (sx + ex) / 2, y, ex, y); fx.stroke(); fx.globalAlpha = 1;
+      fx.fillStyle = c; fx.globalAlpha = w8 > .5 ? 1 : .35; fx.beginPath(); fx.arc(ex + 8, y, 5, 0, 7); fx.fill();
+      fx.textAlign = 'left'; fx.font = '800 13px Inter'; fx.fillStyle = w8 > .5 ? '#f3f8f8' : '#5d7781'; fx.fillText(n, ex + 20, y + 1); fx.font = '600 12px Inter'; fx.fillStyle = w8 > .5 ? c === '#21414d' ? '#8aa3ad' : c : '#5d7781'; fx.fillText(Math.round(w8) + '%', ex + 20, y + 16); fx.globalAlpha = 1;
+    });
+    // particles
+    const rate = 70 * dt; for (let n = 0; n < rate; n++) { let r = Math.random() * 100, k = 0; for (; k < B.length - 1; k++) { r -= W8[B[k][0]]; if (r <= 0) break } parts.push({ k, t: 0, s: .55 + Math.random() * .35, o: (Math.random() - .5) * 6 }) }
+    parts = parts.filter(q => (q.t += dt * q.s) < 1);
+    for (const q of parts) {
+      const [, , c] = B[q.k], y = gap * (q.k + 1), t = q.t, u = 1 - t, mx = (sx + ex) / 2;
+      const X = u * u * u * (sx - 14) + 3 * u * u * t * mx + 3 * u * t * t * mx + t * t * t * ex, Y = u * u * u * sy + 3 * u * u * t * sy + 3 * u * t * t * y + t * t * t * y + q.o * Math.sin(t * Math.PI);
+      fx.fillStyle = c === '#21414d' ? '#69aac1' : c; fx.globalAlpha = Math.min(1, t * 6, (1 - t) * 6); fx.beginPath(); fx.arc(X, Y, 2.2, 0, 7); fx.fill();
+    }
+    fx.globalAlpha = 1;
+  }
+  // magnetic primary buttons
+  if (matchMedia('(pointer:fine)').matches && !RM) {
+    document.addEventListener('pointermove', e => { const b = e.target.closest?.('.btn.pri'); if (!b) return; const r = b.getBoundingClientRect(); b.style.transform = `translate(${((e.clientX - r.left) / r.width - .5) * 8}px,${((e.clientY - r.top) / r.height - .5) * 6}px)` });
+    document.addEventListener('pointerout', e => { const b = e.target.closest?.('.btn.pri'); if (b && !b.contains(e.relatedTarget)) b.style.transform = '' });
+  }
+  let lastY = scrollY, vel = 0, lastT = performance.now();
+  function tick(now) {
+    const dt = Math.min(.05, (now - lastT) / 1000); lastT = now;
+    const y = scrollY, dh = document.documentElement.scrollHeight - innerHeight;
+    vel = vel * .9 + (y - lastY) * .1; lastY = y;
+    prog.style.transform = `scaleX(${dh > 0 ? y / dh : 0})`;
+    totop.classList.toggle('on', y > 900);
+    const home = VIEW === 'home';
+    dots.classList.toggle('on', home && y > 300);
+    if (home) {
+      if (hero) hero.style.setProperty('--sk', Math.min(1, y / 600).toFixed(3));
+      let act = 0; SECS.forEach(([, sel], i) => { const el = $(sel); if (el && el.getBoundingClientRect().top < innerHeight * .4) act = i }); [...dots.children].forEach((a, i) => a.classList.toggle('on', i === act));
+      if (!RM) { pvp(); flow(dt) } else { pvp() }
+      if (vt && vw > 0) { if (Math.abs(vel) > .5) vdir = vel > 0 ? -1 : 1; vx += vdir * (40 + Math.min(900, Math.abs(vel) * 60)) * dt; if (vx < -vw) vx += vw; if (vx > 0) vx -= vw; vt.style.transform = `translateX(${vx.toFixed(1)}px)` }
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
 
 /* =================== boot =================== */
 $('#nWatch').textContent = WATCH.length;

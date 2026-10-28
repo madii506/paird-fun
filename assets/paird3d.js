@@ -299,9 +299,11 @@ function hero() {
     if (cv.clientWidth !== W || cv.clientHeight !== H) size();
     const t = (now - tShow) / 1000;
     ptr.x += (ptr.tx - ptr.x) * Math.min(1, dt * 4); ptr.y += (ptr.ty - ptr.y) * Math.min(1, dt * 4);
-    B.grp.rotation.y = POSE.ry + Math.sin(t * .45) * .16 + ptr.x * .5;
-    B.grp.rotation.x = POSE.rx + ptr.y * .18;
-    B.grp.position.y = Math.sin(t * 1.1) * .35;
+    const sk = Math.min(1, (window.scrollY || 0) / 650), se = sk * sk * (3 - 2 * sk); // scroll: the rings tilt back and lift away
+    B.grp.rotation.y = POSE.ry + Math.sin(t * .45) * .16 + ptr.x * .5 + se * .7;
+    B.grp.rotation.x = POSE.rx + ptr.y * .18 + se * .65;
+    B.grp.position.y = Math.sin(t * 1.1) * .35 + se * 4;
+    B.grp.scale.setScalar(1 - se * .12);
     ped.rotation.y = t * .25; orb.forEach((o, i) => { const a = t * .5 + i * Math.PI / 2; o.position.set(Math.cos(a) * 22.5, .2 + Math.sin(t * 2 + i) * .3, Math.sin(a) * 22.5); o.rotation.set(t, t * .7, 0) });
     // voxels part around the pointer (in the bull's own space)
     B.grp.updateMatrixWorld(); inv.copy(B.M.matrixWorld).invert();
