@@ -672,10 +672,59 @@ textarea.in{height:96px;padding:12px 14px;resize:vertical}
 .tright .qbtn{width:150px}
 @media (max-width:1180px){.tright .qbtn{width:44px;padding:0 12px}.tright .qbtn span,.tright .qbtn kbd{display:none}}
 @media (max-width:820px){.top{grid-template-columns:auto 1fr}.tright{grid-column:2}}
+
+/* ---------- motion & scroll ---------- */
+.sprog{position:fixed;left:0;right:0;top:0;height:2px;z-index:80;pointer-events:none}
+.sprog i{display:block;height:100%;width:100%;transform-origin:0 50%;transform:scaleX(0);background:linear-gradient(90deg,var(--a3),var(--a),var(--a2));box-shadow:0 0 12px var(--a)}
+.totop{position:fixed;right:22px;bottom:22px;z-index:60;width:44px;height:44px;border-radius:50%;border:1px solid var(--line2);background:rgba(13,28,33,.85);backdrop-filter:blur(8px);color:var(--a2);display:grid;place-items:center;cursor:pointer;opacity:0;transform:translateY(16px) scale(.9);transition:opacity .3s,transform .3s,border-color .2s;pointer-events:none}
+.totop.on{opacity:1;transform:none;pointer-events:auto}.totop:hover{border-color:var(--a)}
+.sdots{position:fixed;right:18px;top:50%;transform:translateY(-50%);z-index:55;display:flex;flex-direction:column;gap:12px;opacity:0;pointer-events:none;transition:opacity .4s}
+.sdots.on{opacity:1;pointer-events:auto}
+.sdots a{display:flex;align-items:center;justify-content:flex-end;gap:10px;color:var(--dim);font:700 11px Inter;letter-spacing:.06em;text-transform:uppercase}
+.sdots a span{opacity:0;transform:translateX(6px);transition:.25s;white-space:nowrap;background:rgba(7,16,19,.85);padding:3px 8px;border-radius:6px;border:1px solid var(--line)}
+.sdots a i{width:8px;height:8px;border-radius:50%;background:var(--line2);transition:.3s}
+.sdots a:hover span,.sdots a.on span{opacity:1;transform:none}
+.sdots a.on{color:var(--a2)}.sdots a.on i{background:var(--a);box-shadow:0 0 12px var(--a);transform:scale(1.4)}
+.machine .hx{transform:translateY(calc(var(--sk,0) * -70px));opacity:calc(1 - var(--sk,0) * .8)}
+.sec-h.rv h2{clip-path:inset(0 100% 0 0);transition:clip-path 1s cubic-bezier(.2,.8,.2,1) .1s}
+.sec-h.rv-in h2{clip-path:inset(0 -10px 0 0)}
+.stg.rv-in>*{animation:stIn .75s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0) * 80ms)}
+@keyframes stIn{from{opacity:0;transform:translateY(28px) scale(.96)}}
+.vband{position:relative;margin:26px -28px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:linear-gradient(90deg,var(--bg),rgba(13,28,33,.6),var(--bg));overflow:hidden;height:64px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+.vtrack{position:absolute;left:0;top:0;height:100%;display:flex;align-items:center;gap:34px;white-space:nowrap;will-change:transform;padding-left:20px}
+.vi{display:flex;align-items:center;gap:9px;font:800 15px Inter}
+.vi .pr2 img{width:30px;height:30px}
+.vi em{font-style:normal;color:var(--a2);font-weight:700}
+.vi::after{content:'✦';margin-left:24px;color:var(--line2);font-size:12px}
+.pvpx{position:relative;height:260vh;margin-top:30px}
+.pvp-st{position:sticky;top:84px;height:calc(100vh - 110px);min-height:520px;display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:28px;align-items:center;border:1px solid var(--line);border-radius:22px;background:radial-gradient(600px 320px at 75% 110%,rgba(57,214,163,.12),transparent 70%),var(--bg2);padding:34px 36px;overflow:hidden}
+.pvk{font:700 12px Pix;letter-spacing:.1em;text-transform:uppercase;color:var(--a)}
+.pvp-t h2{margin:10px 0 0;font:700 clamp(34px,4vw,58px)/1.02 Pix;color:var(--tx);min-height:2.04em}
+.pvp-t p{color:#c3d6db;font-size:16px;margin:14px 0 18px;max-width:480px;min-height:4.4em}
+.pvbar{height:4px;border-radius:4px;background:var(--card2);overflow:hidden;margin:0 0 20px;max-width:360px}
+.pvbar i{display:block;height:100%;width:100%;transform-origin:0 50%;transform:scaleX(0);background:linear-gradient(90deg,var(--dn),var(--a))}
+.arena{position:relative;height:100%;min-height:380px;border-radius:18px;border:1px solid var(--line);background:radial-gradient(circle at 50% 50%,rgba(57,214,163,.06),transparent 60%),repeating-linear-gradient(0deg,rgba(57,214,163,.04) 0 1px,transparent 1px 34px),repeating-linear-gradient(90deg,rgba(57,214,163,.04) 0 1px,transparent 1px 34px);overflow:hidden}
+.aglow{position:absolute;left:50%;top:46%;width:300px;height:300px;translate:-50% -50%;border-radius:50%;background:radial-gradient(circle,rgba(57,214,163,.25),transparent 65%);opacity:var(--g,0)}
+.ac{position:absolute;left:0;top:0;display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 18px;border-radius:14px;border:1px solid var(--line2);background:var(--card);box-shadow:0 14px 30px rgba(0,0,0,.35);will-change:transform,opacity;white-space:nowrap}
+.ac b{font:800 20px Inter;letter-spacing:-.02em}
+.ac small{font:700 10px Pix;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+.ac.main{border-color:rgba(57,214,163,.55);box-shadow:0 0 0 1px rgba(57,214,163,.3),0 0 40px rgba(57,214,163,.25)}.ac.main small{color:var(--a)}
+.ac.cp{border-color:rgba(251,113,133,.45)}.ac.cp b{color:#ffc2cd}.ac.cp small{color:var(--dn)}
+.ac.me{background:var(--a);border-color:var(--a)}.ac.me b{color:#061012}.ac.me small{color:#0b3a2c}
+.alink{position:absolute;left:0;top:0;width:96px;will-change:transform,opacity;filter:drop-shadow(0 0 14px rgba(57,214,163,.5))}
+.aflow{position:absolute;left:50%;bottom:22px;translate:-50% 0;font:600 13px Inter;color:var(--a2);background:rgba(7,16,19,.75);border:1px solid rgba(57,214,163,.35);border-radius:999px;padding:7px 14px;white-space:nowrap;opacity:0}
+.arena .pvx{position:absolute;width:120px;right:-24px;top:-30px;opacity:.35;filter:blur(2px);pointer-events:none}
+.flow{display:block;width:100%;height:230px;margin-bottom:12px}
+.btn.pri{will-change:transform}
+@media (max-width:1180px){.sdots{display:none}}
+@media (max-width:820px){.vband{margin:22px -14px 0}.pvpx{height:230vh}.pvp-st{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr;top:70px;height:calc(100vh - 140px);padding:20px 18px;gap:12px;align-content:start}.pvp-t h2{font-size:30px;min-height:auto}.pvp-t p{font-size:14px;min-height:auto;margin:8px 0 12px}.pvp-t .btn{display:none}.arena{min-height:260px}.ac b{font-size:16px}.ac{padding:9px 13px}.flow{height:200px}.totop{bottom:86px}}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 </style>
 </head>
 <body class="locked">
+<div class="sprog"><i id="sprog"></i></div>
+<nav class="sdots" id="sdots" aria-label="Sections"></nav>
+<button class="totop" id="totop" aria-label="Back to top"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
 <!-- INTRO -->
 <div id="intro">
   <div class="ibg"></div>
@@ -727,26 +776,42 @@ textarea.in{height:96px;padding:12px 14px;resize:vertical}
   <div class="mp rail rv" id="mp"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
   <div class="pchips rv" id="pchips"></div>
 
+  <div id="jpSec" style="scroll-margin-top:84px"></div>
   <div class="sec-h rv"><h2>Just paird</h2><small>the newest StonkFun coins and what they trade against · live</small></div>
   <div class="jp rv" id="jp"><div class="skel" style="height:56px"></div><div class="skel" style="height:56px"></div><div class="skel" style="height:56px"></div></div>
+  <div class="vband" id="vband"><div class="vtrack" id="vtrack"></div></div>
 
-  <div class="pvp rv">
-    <img class="pvx" src="assets/img/x1.png" alt="">
-    <div class="pvp-t"><h2>Avoid the PvP.</h2><p>A coin runs and ten copies launch against it. They fight for the same buyers and most of them die. On Paird you pair with the coin instead: your coin trades against it, every buy of yours buys it first, and your fees pay holders in it.</p><a class="btn pri" href="#/launch">Pair with a coin</a></div>
-    <div class="pvp-v">
-      <div class="pc bad"><h5>The PvP</h5><div class="pv-row"><span class="pchip">$CAT</span><span class="vsx">vs</span><span class="pchip">$CAT2</span><span class="vsx">vs</span><span class="pchip">$REALCAT</span></div><p>Same narrative, three coins, one winner.</p></div>
-      <div class="pc good"><h5>Paird</h5><div class="pv-row"><span class="pchip me">$YOURS</span><img src="assets/img/rings.png" alt=""><span class="pchip">$CAT</span></div><p>$YOURS trades against $CAT and pays its holders in $CAT.</p></div>
+  <div class="pvpx" id="pvpSec">
+    <div class="pvp-st">
+      <div class="pvp-t">
+        <div class="pvk" id="pvK">01 · the run</div>
+        <h2 id="pvH">A coin runs.</h2>
+        <p id="pvP">It's working. Buyers pile in, the chart goes vertical, and everyone on the timeline sees it.</p>
+        <div class="pvbar"><i id="pvBar"></i></div>
+        <a class="btn pri" href="#/launch">Pair with a coin</a>
+      </div>
+      <div class="arena" id="arena">
+        <div class="aglow"></div>
+        <div class="ac main" id="acMain"><b>$CAT</b><small>running</small></div>
+        <div class="ac cp" id="acC1"><b>$CAT2</b><small>copy</small></div>
+        <div class="ac cp" id="acC2"><b>$REALCAT</b><small>copy</small></div>
+        <div class="ac cp" id="acC3"><b>$CATX</b><small>copy</small></div>
+        <div class="ac me" id="acMe"><b>$YOURS</b><small>paired with $CAT</small></div>
+        <img class="alink" id="aLink" src="assets/img/rings.png" alt="">
+        <div class="aflow" id="aFlow">every buy of $YOURS buys $CAT first · holders paid in $CAT</div>
+        <img class="pvx" src="assets/img/x1.png" alt="">
+      </div>
     </div>
   </div>
 
   <div id="howSec" style="scroll-margin-top:84px"></div>
   <div class="sec-h rv"><h2>How Paird pays</h2><small>90% of every coin's creator fees go where you point them · 10% keeps Paird running</small></div>
-  <div class="steps rv">
+  <div class="steps rv stg">
     <div class="st3"><b>01</b><h4>Pair it</h4><p>Pick any StonkFun coin, tokenized stock, pre-IPO name or SOL. The pair is what your coin trades against, and what it pays in.</p></div>
     <div class="st3"><b>02</b><h4>Point the payouts</h4><p>Holders, The Drop, Burn, You and Team. Mix them and set the split, up to 90%.</p></div>
     <div class="st3"><b>03</b><h4>List it</h4><p>One signature. The coin, its pool and its payout rules land in the same transaction, or nothing does.</p></div>
   </div>
-  <div class="hooks rv" id="hooks">
+  <div class="hooks rv stg" id="hooks">
     <div class="hk" data-h="holders"><i style="--c:#39d6a3"></i><h4>Holders</h4><p>Split across every holder by size, paid in the pair.</p></div>
     <div class="hk" data-h="drop"><i style="--c:#9ff3d6"></i><h4>The Drop</h4><p>One holder wins the whole pot each round, weighted by bag. Drawn from a recent blockhash so anyone can check it.</p></div>
     <div class="hk" data-h="burn"><i style="--c:#fb7185"></i><h4>Burn</h4><p>Buys your coin back and burns it, on the curve or after graduation.</p></div>
@@ -755,6 +820,7 @@ textarea.in{height:96px;padding:12px 14px;resize:vertical}
   </div>
   <div class="split rv">
     <div class="sp-h"><b>Try a split</b><div class="tabs" id="preset"><button data-p="holders" class="on">Holders</button><button data-p="drop">Drop</button><button data-p="burn">Deflation</button><button data-p="builder">Builder</button><button data-p="balanced">Balanced</button></div></div>
+    <canvas class="flow" id="flow"></canvas>
     <div class="sbar" id="sbar"></div>
     <div class="slegend" id="sleg"></div>
   </div>
