@@ -40,7 +40,11 @@ window.__mx = { loaded: () => LOADED.size, close: () => closeIntro(false), isHom
   el.addEventListener('click', () => { if (performance.now() - INTRO.t0 > 900) closeIntro(true) });
   addEventListener('keydown', e => { if (!INTRO.done && (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ')) closeIntro(true) });
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) { setTimeout(() => closeIntro(true), 400); return }
-  setTimeout(() => { if (INTRO.done || (window.__mx3d && window.__mx3d.intro)) return; el.classList.add('fb'); setTimeout(() => closeIntro(false), 1900) }, 1800);
+  // 2D fallback only when WebGL is missing, or the 3D module never shows up
+  let gl = false; try { const c = document.createElement('canvas'); gl = !!(c.getContext('webgl2') || c.getContext('webgl')) } catch (e) { }
+  const fb = () => { if (INTRO.done || (window.__mx3d && window.__mx3d.intro)) return; el.classList.add('fb'); setTimeout(() => closeIntro(false), 1900) };
+  if (!gl) setTimeout(fb, 300);
+  else { const t = performance.now(), w = () => { if (INTRO.done || window.__mx3d) { if (window.__mx3d && !window.__mx3d.intro) fb(); return } if (performance.now() - t > 12000) return fb(); setTimeout(w, 250) }; setTimeout(w, 250) }
 })();
 
 /* =================== data =================== */

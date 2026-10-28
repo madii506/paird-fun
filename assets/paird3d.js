@@ -141,7 +141,7 @@ function intro() {
     const a2 = a + 1.2 + rnd() * .5, r2 = r * (.32 + rnd() * .12);
     const M = new THREE.Vector3(Math.cos(a2) * r2, THREE.MathUtils.lerp(y, v[1], .65), Math.sin(a2) * r2 * .7 + 4);
     const hk = (v[1] - BULL.minY) / BULL.h;
-    P[i] = { A, B: Bv, M, d: .15 + hk * 1.05 + rnd() * .22, ax: new THREE.Vector3(rnd() - .5, rnd() - .5, rnd() - .5).normalize(), sp: (2 + rnd() * 4) * (rnd() < .5 ? -1 : 1) };
+    P[i] = { A, B: Bv, M, d: .25 + hk * 1.85 + rnd() * .35, ax: new THREE.Vector3(rnd() - .5, rnd() - .5, rnd() - .5).normalize(), sp: (1 + rnd() * 1.8) * (rnd() < .5 ? -1 : 1) };
   }
 
   // ---- floor grid and landing ring ----
@@ -158,16 +158,16 @@ function intro() {
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), pos = new THREE.Vector3(), col = new THREE.Color();
   const fit = (h) => h / (2 * TAN); // distance that shows h world units vertically
   const bullD = () => Math.max(fit(BULL.h / (W > H ? .42 : .34)), BULL.w / (.78 * 2 * TAN * (W / H)));
-  const FLY = .95, LAND = 2.45;
+  const FLY = 1.4, LAND = 3.95;
 
   function frame(now) {
     if (gone) return;
     const t = FIX != null && +FIX < 90 ? +FIX : (now - t0) / 1000;
     // camera: a slow orbit and dolly in, settling straight on as the bull completes
-    const ck = easeIO(clamp(t / 2.35)), D = bullD() * THREE.MathUtils.lerp(1.45, 1, ck), ang = THREE.MathUtils.lerp(-.55, 0, ck);
+    const ck = easeIO(clamp(t / 3.85)), D = bullD() * THREE.MathUtils.lerp(1.55, 1, ck), ang = THREE.MathUtils.lerp(-.7, 0, ck);
     cam.position.set(Math.sin(ang) * D, D * .12 * (1 - ck), Math.cos(ang) * D); cam.lookAt(0, 0, 0);
     S.fog.near = D * 1.05; S.fog.far = D * 2.3;
-    grid.material.opacity = .55 * clamp(t / .6) * (1 - clamp((t - 2.6) / 1.2) * .55);
+    grid.material.opacity = .55 * clamp(t / .9) * (1 - clamp((t - 4.1) / 1.4) * .55);
 
     // voxels: spiral in and lock into place
     const gl = B.glow.array;
@@ -186,17 +186,17 @@ function intro() {
     B.M.instanceMatrix.needsUpdate = true; B.M.instanceColor.needsUpdate = true; B.glow.needsUpdate = true;
 
     // eyes ignite on landing, a ring runs across the floor, a mint wave climbs the bull
-    const lk = clamp((t - LAND) / .5);
+    const lk = clamp((t - LAND) / .7);
     B.GM.visible = lk > 0; B.GM.scale.setScalar(Math.max(.001, backOut(lk)));
     B.gm.emissiveIntensity = 2.2 + Math.max(0, 1 - (t - LAND) * 1.4) * 6;
     if (t > LAND && !flash) flash = t;
     if (flash) {
-      const rk = clamp((t - flash) / 1.3); ring.scale.setScalar(4 + rk * 70); ring.material.opacity = (1 - rk) * .8;
-      const wk = clamp((t - flash) / 1.1); B.mat.userData.u.uWaveY.value = BULL.minY - 3 + wk * (BULL.h + 6); B.mat.userData.u.uWaveA.value = 1.8 * (1 - wk * .6) * (wk < 1 ? 1 : 0);
+      const rk = clamp((t - flash) / 1.8); ring.scale.setScalar(4 + rk * 70); ring.material.opacity = (1 - rk) * .8;
+      const wk = clamp((t - flash) / 1.6); B.mat.userData.u.uWaveY.value = BULL.minY - 3 + wk * (BULL.h + 6); B.mat.userData.u.uWaveA.value = 1.8 * (1 - wk * .6) * (wk < 1 ? 1 : 0);
     }
     // the bull turns to its pose once assembled, then breathes
-    const tk = easeIO(clamp((t - LAND + .3) / 1.2));
-    B.grp.rotation.y = tk * POSE.ry + (t > LAND + .9 ? Math.sin((t - LAND - .9) * .5) * .12 : 0);
+    const tk = easeIO(clamp((t - LAND + .2) / 1.7));
+    B.grp.rotation.y = tk * POSE.ry + (t > LAND + 1.5 ? Math.sin((t - LAND - 1.5) * .5) * .1 : 0);
     B.grp.rotation.x = tk * POSE.rx;
     // exit: fly to the hero stage, matching its size and pose
     if (exitAt) {
@@ -208,8 +208,8 @@ function intro() {
       if (k >= 1) { finish(); return }
     }
     R.render(S, cam);
-    { const show = clamp((t - 2.05) / .45) * (exitAt ? Math.max(0, 1 - (now - exitAt) / 260) : 1); HL.cycle(now, 330, t > 4.0); HL.place(B.grp, cam, W, H, HL.has() ? show : 0) }
-    if (!exitAt && (FIX == null || +FIX >= 90) && MX.loaded && ((t > 3.7 && MX.loaded() >= 2) || t > 5.4)) MX.close && MX.close();
+    { const show = clamp((t - (LAND - .45)) / .7) * (exitAt ? Math.max(0, 1 - (now - exitAt) / 380) : 1); HL.cycle(now, 460, t > LAND + 1.8); HL.place(B.grp, cam, W, H, HL.has() ? show : 0) }
+    if (!exitAt && (FIX == null || +FIX >= 90) && MX.loaded && ((t > LAND + 2.5 && MX.loaded() >= 2) || t > LAND + 4.2)) MX.close && MX.close();
     requestAnimationFrame(frame);
   }
   function finish() {
@@ -220,7 +220,7 @@ function intro() {
   // called by app.js when the intro closes (auto, click, skip or key)
   window.__mx3dIntro = {
     exit(fast) {
-      if (exitAt) return; exitAt = performance.now(); exitDur = fast ? 760 : 980;
+      if (exitAt) return; exitAt = performance.now(); exitDur = fast ? 900 : 1400;
       el.classList.add('leaving');
       const t = (exitAt - t0) / 1000;
       // if skipped before the bull exists, just fade
