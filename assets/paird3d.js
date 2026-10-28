@@ -77,6 +77,49 @@ const POSE = { ry: .22, rx: .08 };
 const heroFill = () => innerWidth < 820 ? .5 : .46; // shape height as a share of the stage height
 let HERO = null;
 
+
+/* ---------------- real StonkFun pairs inside the two ring holes ---------------- */
+const OFF = 7.2, HOLE = 5.5;
+function holes(parent, cls) {
+  const box = document.createElement('div'); box.className = cls; box.innerHTML = '<i><img alt=""></i><i><img alt=""></i>'; parent.appendChild(box);
+  const [a, b] = box.querySelectorAll('i'), ia = a.firstChild, ib = b.firstChild;
+  const seen = new Set(), ready = []; let idx = -1, nextAt = 0, lastFeed = -1e9, shownAt = -1e9;
+  const v = new THREE.Vector3(), w = new THREE.Vector3();
+  function feed(now) {
+    if (now - lastFeed < 600) return; lastFeed = now;
+    const L = (window.__mxPairs && window.__mxPairs()) || [];
+    for (const p of L) {
+      if (seen.has(p.k)) continue; seen.add(p.k);
+      const i1 = new Image(), i2 = new Image(); let n = 0; i1.referrerPolicy = i2.referrerPolicy = 'no-referrer';
+      const done = () => { if (++n === 2) { ready.push(p); ready.sort((x, y) => x.r - y.r) } }; i1.onload = i2.onload = done; i1.src = p.img; i2.src = p.q;
+    }
+  }
+  function show(p) { ia.src = p.img; ib.src = p.q; shownAt = performance.now(); window.__mxPairNow = p; dispatchEvent(new CustomEvent('mx:pair', { detail: p })) }
+  return {
+    has: () => ready.length > 0,
+    feed,
+    cycle(now, every, hold) {
+      feed(now); if (!ready.length) return; nextAt = Math.min(nextAt, now + every);
+      if (hold) { if (idx !== 0) { idx = 0; show(ready[0]) } return }
+      if (now >= nextAt) { idx = (idx + 1) % ready.length; show(ready[idx]); nextAt = now + every }
+    },
+    place(grp, cam, W, H, alpha) {
+      grp.updateMatrixWorld();
+      for (const [el, x] of [[a, -OFF], [b, OFF]]) {
+        v.set(x, 0, 1.6).applyMatrix4(grp.matrixWorld); const d = cam.position.distanceTo(v); w.copy(v).project(cam);
+        const px = (w.x * .5 + .5) * W, py = (-w.y * .5 + .5) * H, dia = 2 * HOLE * grp.scale.x / (2 * d * TAN) * H;
+        el.style.transform = `translate(${px.toFixed(1)}px,${py.toFixed(1)}px) translate(-50%,-50%)`; el.style.width = el.style.height = Math.max(0, dia).toFixed(1) + 'px';
+      }
+      box.style.opacity = alpha;
+      const k = clamp((performance.now() - shownAt) / 420), e = backOut(k);
+      ia.style.opacity = ib.style.opacity = Math.min(1, k * 2.2); ia.style.transform = ib.style.transform = `scale(${(.6 + .4 * e).toFixed(3)})`;
+    },
+    next() { nextAt = 0 },
+    prev() { if (ready.length) { idx = (idx - 2 + ready.length * 2) % ready.length; nextAt = 0 } },
+    list: () => ready
+  };
+}
+
 /* ======================================================================
    INTRO: a storm of mint voxels spirals in and builds the steel bull from
    the ground up, his eyes ignite, a wave runs up him, then he flies into the hero.
@@ -87,6 +130,7 @@ function intro() {
   const { R, S, cam } = st;
   const B = makeBull(); S.add(B.grp);
   const FLOOR = BULL.minY - 2.2;
+  const HL = holes(el, 'iholes');
 
   // every voxel starts out in a wide swirl around the bull and flies home, bottom rows first
   const rnd = Math.random, P = new Array(N);
@@ -164,6 +208,7 @@ function intro() {
       if (k >= 1) { finish(); return }
     }
     R.render(S, cam);
+    { const show = clamp((t - 2.05) / .45) * (exitAt ? Math.max(0, 1 - (now - exitAt) / 260) : 1); HL.cycle(now, 330, t > 4.0); HL.place(B.grp, cam, W, H, HL.has() ? show : 0) }
     if (!exitAt && (FIX == null || +FIX >= 90) && MX.loaded && ((t > 3.7 && MX.loaded() >= 2) || t > 5.4)) MX.close && MX.close();
     requestAnimationFrame(frame);
   }
@@ -231,6 +276,8 @@ function hero() {
   });
   hostEl.addEventListener('pointerleave', () => { ptr.tx = ptr.ty = 0; ptr.on = false });
   cv.addEventListener('click', () => pulse('tap'));
+  const HH = holes(cv.parentElement, 'hholes'); let manualUntil = 0;
+  window.__mxHero = { next() { manualUntil = performance.now() + 12000; HH.next() }, prev() { manualUntil = performance.now() + 12000; HH.prev() } };
 
   // waves: one per real event, queued so bursts of launches don't blur together
   const waves = []; let lastWave = 0;
@@ -275,6 +322,7 @@ function hero() {
       if (k >= 1) { wave = null; u.uWaveA.value = 0 }
     } else B.gm.emissiveIntensity = 2.2 + Math.sin(t * 2.2) * .4;
     R.render(S, cam);
+    HH.cycle(now, performance.now() < manualUntil ? 1e12 : 3400, false); HH.place(B.grp, cam, W, H, HH.has() && cv.style.opacity === '1' ? 1 : 0);
   }
   requestAnimationFrame(frame);
   return {

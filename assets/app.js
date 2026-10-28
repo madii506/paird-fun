@@ -150,7 +150,7 @@ function mostPaird() {
     MPKEY = key;
     $('#mp').innerHTML = top.map((x, i) => `<div class="pcard${PAIR === x.q ? ' on' : ''}" data-pair="${esc(x.q)}"><span class="rk">#${i + 1}</span><div class="ph">${x.logo ? `<img src="${esc(x.logo)}" alt="" onerror="this.style.visibility='hidden'">` : '<img alt="">'}<div style="min-width:0"><b>${esc(x.q)}</b><span>${esc(x.cat || 'pair')}</span></div></div>
       <div class="pn"><div><b>${x.n}</b><span>coins paird</span></div><div><b>${usd(x.vol)}</b><span>24h volume</span></div><div><b>${usd(x.mc)}</b><span>market cap</span></div></div>
-      <div class="stk">${x.coins.sort((a, b) => (b.mcap || 0) - (a.mcap || 0)).slice(0, 7).map(c => img(c, '', '', 's')).join('')}</div><span class="go">See coins →</span></div>`).join('');
+      <div class="stk">${x.coins.sort((a, b) => (b.mcap || 0) - (a.mcap || 0)).slice(0, 7).map(c => img(c, '', '', 's')).join('')}</div><span class="go">Open pair →</span></div>`).join('');
     $('#pchips').innerHTML = L.slice(8, 40).map(x => `<button data-pair="${esc(x.q)}" class="${PAIR === x.q ? 'on' : ''}">${x.logo ? `<img src="${esc(x.logo)}" alt="" onerror="this.style.visibility='hidden'">` : '<img alt="">'}${esc(x.q)}<i>${x.n}</i></button>`).join('');
     const tot = L.reduce((a, x) => a + x.n, 0);
     $('#mpNote').textContent = `${tot} StonkFun coins on the board, paired with ${L.length} different assets · tap one to see its coins`;
@@ -159,14 +159,15 @@ function mostPaird() {
 }
 function stats() {
   const all = [...ALL.values()].filter(c => c.pad === 'stonkfun');
-  $('#nAll').textContent = all.length; $('#nSf').textContent = SFTOTAL != null ? fmtN(SFTOTAL) : all.length; $('#nAu').textContent = 0;
+  $('#nAll').textContent = all.length;
   if (SFTOTAL != null) countTo($('#bTot'), SFTOTAL, v => Math.round(v).toLocaleString('en-US'));
   const L = pairsAgg(); countTo($('#bPairs'), L.length, v => Math.round(v));
   countTo($('#bVol'), all.reduce((a, c) => a + (c.v24 || 0), 0), usd);
-  mostPaird(); mmap(); if (VIEW === 'launch') pairList(); if (VIEW === 'check' && !$('#kCoin').dataset.filled) checkCoins();
+  mostPaird(); justPaired(); mmap(); if (VIEW === 'launch') pairList(); if (VIEW === 'pair' && CURP) pairView(CURP); if (VIEW === 'check' && !$('#kCoin').dataset.filled) checkCoins();
 }
 let STRIPKEY = '';
 function strip() {
+  if (!$('#strip')) return;
   const L = S.vol.slice(0, 18).map(m => ALL.get(m)).filter(Boolean); if (!L.length) return;
   const key = L.map(c => c.mint).join(); if (key === STRIPKEY) return; STRIPKEY = key;
   const one = L.map(c => `<a class="tc" href="#/coin/${c.mint}" data-m="${c.mint}"><div class="im">${img(c, '', '', 'l')}${c.quote ? `<span class="pp sf"><i></i>${esc(c.quote)}</span>` : ''}<span class="chg ${(c.c1 || 0) < 0 ? 'dn' : 'up'}">${c.c1 != null ? pct(c.c1) : usd(c.v24)}</span></div><div class="bd"><b>$${esc((c.sym || '').slice(0, 14))}</b><span>${usd(c.mcap)} · vol ${usd(c.v24)} / 24h</span></div></a>`).join('');
@@ -180,6 +181,49 @@ function drop(c) {
   d.innerHTML = `${img(c, '', '', 's')}<b>$${esc((c.sym || '').slice(0, 10))}</b><span>${c.quote ? 'paired with ' + esc(c.quote) : 'just launched'}</span>`;
   box.prepend(d); while (box.children.length > 3) box.lastChild.remove(); setTimeout(() => d.remove(), 5600);
 }
+/* real pairs for the rings in the intro and the hero */
+window.__mxPairs = () => {
+  const seen = new Set(), out = [];
+  for (const m of [...S.vol, ...S.top, ...S.new]) { const c = ALL.get(m); if (!c || seen.has(m) || !c.quote || !c.qlogo || !(c.simg || c.jimg)) continue; seen.add(m); out.push({ k: m, r: out.length, img: srcs(c, 'm')[0], q: c.qlogo, sym: c.sym, quote: c.quote }); if (out.length >= 24) break }
+  return out;
+};
+/* just paired: the newest StonkFun coins and what they're paired with */
+let JPKEY = '';
+function justPaired() {
+  const L = S.new.map(m => ALL.get(m)).filter(c => c && c.quote).slice(0, 8); if (!L.length) return;
+  const key = L.map(c => c.mint).join(); if (key === JPKEY) { $$('#jp .jr').forEach(r => { const c = ALL.get(r.dataset.m); if (c) { r.querySelector('.ag').textContent = ago(c.created) + ' ago'; r.querySelector('.mc2').textContent = usd(c.mcap) } }); return }
+  const old = new Set($$('#jp .jr').map(r => r.dataset.m)); JPKEY = key;
+  $('#jp').innerHTML = L.map(c => `<a class="jr${old.size && !old.has(c.mint) ? ' fresh' : ''}" href="#/coin/${c.mint}" data-m="${c.mint}"><span class="pr2">${img(c, '', '', 's')}<i class="lk"></i>${c.qlogo ? `<img src="${esc(c.qlogo)}" alt="" onerror="this.style.visibility='hidden'">` : '<img alt="">'}</span><b>$${esc((c.sym || '').slice(0, 12))}</b><span class="pw">paired with <em>${esc(c.quote)}</em></span><span class="mc2 num">${usd(c.mcap)}</span><span class="ag">${ago(c.created)} ago</span></a>`).join('');
+}
+/* pair page */
+function pairView(q) {
+  const P = pairsAgg().find(x => x.q === q);
+  const coins = [...ALL.values()].filter(c => c.quote === q).sort((a, b) => (b.v24 || 0) - (a.v24 || 0) || (b.mcap || 0) - (a.mcap || 0));
+  const logo = P?.logo || coins.find(c => c.qlogo)?.qlogo;
+  $('#pHead').innerHTML = `${logo ? `<img src="${esc(logo)}" alt="" onerror="this.style.visibility='hidden'">` : ''}<div style="min-width:0"><h2>${esc(q)}</h2><div class="note">${esc(P?.cat || 'pair')} · quote asset on StonkFun</div></div>
+    <div class="pact"><a class="btn pri" href="#/launch/${encodeURIComponent(q)}">Pair a coin with ${esc(q)}</a><button class="btn gh" id="pShare">Share</button></div>`;
+  $('#pStats').innerHTML = [st('Coins paird', coins.length ? String(coins.length) : '—'), st('24h volume', usd(coins.reduce((a, c) => a + (c.v24 || 0), 0))), st('Market cap', usd(coins.reduce((a, c) => a + (c.mcap || 0), 0))), st('Top coin', coins[0] ? '$' + (coins[0].sym || '') : '—')].join('');
+  $('#pGrid').innerHTML = coins.length ? coins.slice(0, 72).map(c => card(c)).join('') : `<div class="empty">No coins on the board are paired with ${esc(q)} right now. Be the first.</div>`;
+  $('#pShare').onclick = () => window.open('https://x.com/intent/post?text=' + encodeURIComponent(`${coins.length} StonkFun coins are paired with ${q} right now.\n\npair yours. get paid in ${q}.\n${location.origin}/#/pair/${encodeURIComponent(q)}`), '_blank', 'noopener');
+  if (!coins.length && P == null) { get(`${SFAPI}?q=${encodeURIComponent(q)}&pageSize=50&page=1`).then(j => { sfList(j); if (VIEW === 'pair') pairView(q) }).catch(() => { }) }
+}
+
+/* the hero's live pair panel follows the rings */
+let LPK = '';
+function livePair(p) {
+  const c = p && ALL.get(p.k); if (!c) return; LPK = c.mint;
+  const L = window.__mxPairs ? window.__mxPairs() : []; const i = L.findIndex(x => x.k === c.mint);
+  $('#lpIdx').textContent = i >= 0 ? `${i + 1} / ${L.length}` : '';
+  $('#lpRow').innerHTML = `${img(c, '', '', 'm')}<b>$${esc((c.sym || '').slice(0, 12))}</b><span class="lk2"></span>${c.qlogo ? `<img src="${esc(c.qlogo)}" alt="" onerror="this.style.visibility='hidden'">` : ''}<b class="q">${esc(c.quote)}</b>`;
+  const pd = paidDay(c);
+  $('#lpSt').innerHTML = `<span>mcap <b>${usd(c.mcap)}</b></span><span>24h vol <b>${usd(c.v24 ?? c.jv24)}</b></span>${c.tfee != null ? `<span>fee <b>${c.tfee / 100}%</b></span>` : ''}${pd != null ? `<span class="hi">holders would get <b>${usd2(pd)}/day</b> in ${esc(c.quote)} on Paird</span>` : ''}`;
+  $('#lpCoin').href = '#/coin/' + c.mint; $('#lpGo').href = '#/launch/' + encodeURIComponent(c.quote); $('#lpGo').textContent = 'Pair yours with ' + c.quote;
+  $('#slA').textContent = '$' + (c.sym || '').slice(0, 10); $('#slB').textContent = c.quote;
+}
+addEventListener('mx:pair', e => livePair(e.detail));
+$('#lpPrev').addEventListener('click', () => window.__mxHero && window.__mxHero.prev());
+$('#lpNext').addEventListener('click', () => window.__mxHero && window.__mxHero.next());
+
 /* the split demo */
 const HK = [['holders', 'Holders', '#39d6a3'], ['drop', 'The Drop', '#9ff3d6'], ['burn', 'Burn', '#fb7185'], ['you', 'You', '#69aac1'], ['team', 'Team', '#e6fbf4']];
 const PRESETS = { holders: { holders: 60, drop: 30 }, drop: { drop: 70, holders: 20 }, burn: { burn: 70, holders: 20 }, builder: { you: 50, holders: 40 }, balanced: { holders: 30, drop: 20, burn: 20, you: 20 } };
@@ -280,13 +324,22 @@ function list(tab) {
   else if (PAIR) L = [...ALL.values()].filter(c => c.quote === PAIR).sort(tab === 'new' ? byNew : (a, b) => (b[tab === 'vol' ? 'v24' : 'mcap'] || 0) - (a[tab === 'vol' ? 'v24' : 'mcap'] || 0));
   else L = (S[tab] || []).map(m => ALL.get(m)).filter(Boolean);
   if (PAIR) L = L.filter(c => c.quote === PAIR);
-  if (SORT !== 'def') L = [...L].sort((a, b) => SORT === 'age' ? byNew(a, b) : (b[SORT] ?? -1e18) - (a[SORT] ?? -1e18));
+  if (SORT !== 'def') L = [...L].sort((a, b) => SORT === 'age' ? byNew(a, b) : SORT === 'paid' ? (paidDay(b) ?? -1) - (paidDay(a) ?? -1) : SORT === 'quote' ? String(a.quote || '').localeCompare(String(b.quote || '')) : SORT === 'coin' ? String(a.sym || '').localeCompare(String(b.sym || '')) : (b[SORT] ?? -1e18) - (a[SORT] ?? -1e18));
   return L;
+}
+const paidDay = c => c.tfee != null && (c.v24 ?? c.jv24) != null ? (c.v24 ?? c.jv24) * c.tfee / 10000 * HOOKS_CUT : null;
+const EXCOL = [['', ''], ['coin', 'Coin'], ['quote', 'Pair'], ['mcap', 'Mcap', 1], ['v24', 'Vol 24h', 1], ['c1', '1h', 1, 'c5'], ['tfee', 'Fee', 1], ['paid', 'Paid / day on Paird', 1], ['age', 'Age', 1, 'c8']];
+function row(c, fresh) {
+  const W = WATCH.includes(c.mint), pd = paidDay(c), chg = c.c1;
+  return `<a class="exr${fresh ? ' fresh' : ''}" href="#/coin/${c.mint}" data-m="${c.mint}"><span class="star${W ? ' on' : ''}" role="button" data-star="${c.mint}" title="Watch">${W ? '★' : '☆'}</span>
+    <span class="co"><span class="pr2">${img(c, '', '', 's')}<i class="lk"></i>${c.qlogo ? `<img src="${esc(c.qlogo)}" alt="" onerror="this.style.visibility='hidden'">` : '<img alt="">'}</span><span style="min-width:0"><b>$${esc((c.sym || '').slice(0, 12))}</b><span class="nm2">${esc((c.name || '').slice(0, 28))}</span></span></span>
+    <span class="pq2">${esc(c.quote || '—')}</span><span class="n">${usd(c.mcap)}</span><span class="n">${usd(c.v24 ?? c.jv24)}</span><span class="n c5 ${(chg || 0) < 0 ? 'dn' : 'up'}">${chg != null ? pct(chg) : '—'}</span><span class="n">${c.tfee != null ? c.tfee / 100 + '%' : '—'}</span><span class="pd">${pd != null ? usd2(pd) : '—'}</span><span class="ag">${ago(c.created)}</span></a>`;
 }
 function grid(fresh = []) {
   const L = list(TAB);
   const msg = PAIR && !Q ? 'No coins on the board are paired with ' + esc(PAIR) + ' right now.' : Q ? 'No coin matches that yet. Paste a full address to open any coin.' : TAB === 'watch' ? 'Nothing saved yet. Tap ☆ on any coin to watch it.' : TAB === 'grad' ? 'No graduated coins on the board yet.' : 'Reading StonkFun…';
-  $('#grid').innerHTML = L.length ? L.map(c => card(c, fresh.includes(c.mint))).join('') : `<div class="empty">${msg}</div>`;
+  const hd = `<div class="exh">${EXCOL.map(([k, t, r, cl]) => `<span class="${r ? 'r ' : ''}${cl || ''}${k && SORT === (k === 'age' ? 'age' : k) ? ' on' : ''}" data-sortk="${k}">${t}</span>`).join('')}</div>`;
+  $('#grid').innerHTML = L.length ? hd + L.map(c => row(c, fresh.includes(c.mint))).join('') : `<div class="empty">${msg}</div>`;
   $('#bCount').innerHTML = `${L.length} coins · StonkFun${PAIR ? ` · paired with <b style="color:var(--a2)">${esc(PAIR)}</b> <a href="#" data-clrpair="1" style="color:var(--a)">✕</a>` : ''}`;
   L.forEach(c => c.mcap && PREV.set(c.mint, c.mcap));
 }
@@ -295,6 +348,7 @@ function setTab(t) { TAB = t; $$('#tabs button').forEach(x => x.classList.toggle
 function setPair(q) { PAIR = q; MPKEY = ''; mostPaird(); grid() }
 $('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setTab(b.dataset.t) });
 $('#sort').addEventListener('change', e => { SORT = e.target.value; grid() });
+$('#grid').addEventListener('click', e => { const h = e.target.closest('[data-sortk]'); if (!h || !h.dataset.sortk) return; e.preventDefault(); SORT = SORT === h.dataset.sortk ? 'def' : h.dataset.sortk; const o = [...$('#sort').options].find(o => o.value === SORT); $('#sort').value = o ? SORT : 'def'; grid() });
 let QT;
 $('#q').addEventListener('input', e => {
   Q = e.target.value.trim(); REMOTE = [];
@@ -390,7 +444,7 @@ document.addEventListener('click', e => {
   const s = e.target.closest('[data-star]'); if (s) { e.preventDefault(); e.stopPropagation(); toggleWatch(s.dataset.star); return }
   const h = e.target.closest('[data-href]'); if (h) { e.preventDefault(); e.stopPropagation(); window.open(h.dataset.href, '_blank', 'noopener'); return }
   if (e.target.closest('[data-clrpair]')) { e.preventDefault(); setPair(''); return }
-  const pc = e.target.closest('[data-pair]'); if (pc) { setPair(PAIR === pc.dataset.pair ? '' : pc.dataset.pair); if (VIEW !== 'home') location.hash = '#/'; goMarket(); return }
+  const pc = e.target.closest('[data-pair]'); if (pc) { location.hash = '#/pair/' + encodeURIComponent(pc.dataset.pair); return }
   if (e.target.closest('[data-paird]')) { e.preventDefault(); location.hash = '#/launch'; toast('No Paird coins yet. Pairing opens with $PAIRD.'); return }
   if (e.target.closest('[data-connect]')) connect();
 }, true);
@@ -539,21 +593,22 @@ async function connect() {
 }
 
 /* =================== router =================== */
-let VIEW = 'home';
+let VIEW = 'home', CURP = '';
 function goMarket() { requestAnimationFrame(() => $('#market').scrollIntoView({ behavior: 'smooth', block: 'start' })) }
 const ANCH = { pairs: '#pairsSec', map: '#mapSec', how: '#howSec' };
 function route() {
   const h = location.hash.replace(/^#/, '') || '/'; const [, r, arg] = h.split('/');
-  const view = r === 'coin' ? 'coin' : ['launch', 'check', 'faq', 'watch'].includes(r) ? r : 'home';
+  const view = r === 'coin' ? 'coin' : ['launch', 'check', 'faq', 'watch', 'pair'].includes(r) ? r : 'home';
   const prevView = VIEW; VIEW = view;
   $$('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + view));
-  const nav = r === 'board' || ANCH[r] ? r : view;
+  const nav = r === 'board' || ANCH[r] ? r : view === 'pair' ? 'pairs' : view;
   $$('#nav a,#mob a').forEach(a => a.classList.toggle('on', a.dataset.r === nav));
   if (view !== 'coin') CUR = null;
   if (view === 'coin' && arg) coin(arg);
   if (view === 'launch') { pairList(); if (arg) setLPair(decodeURIComponent(arg)); else lprev() }
   if (view === 'check') { checkCoins(); check() }
   if (view === 'watch') { wgrid(); enrich() }
+  if (view === 'pair') { CURP = decodeURIComponent(arg || ''); pairView(CURP) } else CURP = '';
   if (ANCH[r]) requestAnimationFrame(() => $(ANCH[r]).scrollIntoView({ behavior: 'smooth', block: 'start' }));
   else if (r === 'board') { grid(); if (prevView !== 'home') scrollTo(0, 0); goMarket() }
   else scrollTo({ top: 0, behavior: 'auto' });
