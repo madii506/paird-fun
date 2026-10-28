@@ -1,4 +1,4 @@
-// paird 3D: a voxel storm that links the two rings, then the live rings in the hero
+// paird 3D: the pairing intro (two rings roll in and snap together on a real pair), then the live rings in the hero
 // and the live hero bull that reacts to real launches and level-ups.
 import * as THREE from './three.module.min.js';
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
@@ -121,98 +121,140 @@ function holes(parent, cls) {
 }
 
 /* ======================================================================
-   INTRO: a storm of mint voxels spirals in and builds the steel bull from
-   the ground up, his eyes ignite, a wave runs up him, then he flies into the hero.
+   INTRO: the pairing. Two rings roll in from opposite sides like coins,
+   real StonkFun coins spin in one, real pair assets in the other, the
+   rings snap together, and the slots land on a real live pair.
    ====================================================================== */
 function intro() {
   const el = $('#intro'), cv = $('#ic3'); if (!el || !cv || REDUCE) return false;
   let st; try { st = stage(cv, 1.5) } catch (e) { return false }
   const { R, S, cam } = st;
-  const B = makeBull(); S.add(B.grp);
-  const FLOOR = BULL.minY - 2.2;
-  const HL = holes(el, 'iholes');
-
-  // every voxel starts out in a wide swirl around the bull and flies home, bottom rows first
-  const rnd = Math.random, P = new Array(N);
-  for (let i = 0; i < N; i++) {
-    const v = BULL.V[i], Bv = new THREE.Vector3(v[0], v[1], v[2]);
-    const a = rnd() * Math.PI * 2, r = 40 + rnd() * 70, y = (rnd() - .35) * 80;
-    const A = new THREE.Vector3(Math.cos(a) * r, y, Math.sin(a) * r * .7 - 6);
-    const a2 = a + 1.2 + rnd() * .5, r2 = r * (.32 + rnd() * .12);
-    const M = new THREE.Vector3(Math.cos(a2) * r2, THREE.MathUtils.lerp(y, v[1], .65), Math.sin(a2) * r2 * .7 + 4);
-    const hk = (v[1] - BULL.minY) / BULL.h;
-    P[i] = { A, B: Bv, M, d: .25 + hk * 1.85 + rnd() * .35, ax: new THREE.Vector3(rnd() - .5, rnd() - .5, rnd() - .5).normalize(), sp: (1 + rnd() * 1.8) * (rnd() < .5 ? -1 : 1) };
+  const FLOOR = BULL.minY - 1.0;
+  // two separate rings, so each can roll in on its own; the notches where they cross are hidden at the snap
+  const ro = 9.6, ri = 6.1, off = 7.2, RA = [], RB = [];
+  for (let x = -20; x <= 20; x++) for (let y = -13; y <= 13; y++) {
+    const da = Math.hypot(x + off, y), db = Math.hypot(x - off, y), ina = da <= ro && da >= ri, inb = db <= ro && db >= ri;
+    for (let z = -1; z <= 1; z++) { if (ina) RA.push([x, y, z, inb && y < 0]); if (inb) RB.push([x, y, z, ina && y >= 0]) }
   }
+  const U = RA.concat(RB), cx0 = (Math.min(...U.map(v => v[0])) + Math.max(...U.map(v => v[0]))) / 2, cy0 = (Math.min(...U.map(v => v[1])) + Math.max(...U.map(v => v[1]))) / 2;
+  const mat = steel(), G = new THREE.Group(); S.add(G);
+  const m4 = new THREE.Matrix4(), ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
+  function ringMesh(L, col, home) {
+    const geo = GEO.clone(), glow = new THREE.InstancedBufferAttribute(new Float32Array(L.length), 1); glow.setUsage(THREE.DynamicDrawUsage); geo.setAttribute('aGlow', glow);
+    const M = new THREE.InstancedMesh(geo, mat, L.length);
+    L.forEach((v, i) => { m4.makeTranslation(v[0] - cx0 - home, v[1] - cy0, v[2]); M.setMatrixAt(i, m4); M.setColorAt(i, col) });
+    const pv = new THREE.Group(); pv.position.x = home; pv.add(M); G.add(pv);
+    return { M, pv, glow, L, home };
+  }
+  const RA_ = ringMesh(RA, new THREE.Color(0x39d6a3), -off - cx0), RB_ = ringMesh(RB, new THREE.Color(0xeef6f3), off - cx0);
+  const B = { grp: G, mat };
 
-  // ---- floor grid and landing ring ----
+  // ---- floor, light streaks and the snap ring ----
   S.fog = new THREE.Fog(0x050d10, 80, 260);
   const grid = new THREE.GridHelper(320, 128, 0x1f5a4c, 0x12303a); grid.position.y = FLOOR; grid.material.transparent = true; grid.material.opacity = 0; grid.material.depthWrite = false; S.add(grid);
   const ring = new THREE.Mesh(new THREE.RingGeometry(.9, 1, 96), new THREE.MeshBasicMaterial({ color: 0x9ff3d6, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
   ring.rotation.x = -Math.PI / 2; ring.position.y = FLOOR + .05; S.add(ring);
+  const streak = (c) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(60, .35), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })); m.position.y = FLOOR + .3; S.add(m); return m };
+  const sA = streak(0x39d6a3), sB = streak(0xe6fbf4);
+
+  // ---- the two slots: real coins on the left, real pair assets on the right ----
+  const box = document.createElement('div'); box.className = 'iholes islots'; box.innerHTML = '<i><img alt=""></i><i><img alt=""></i>'; el.appendChild(box);
+  const [sa, sb] = box.querySelectorAll('i'), ia = sa.firstChild, ib = sb.firstChild;
+  const coins = [], quotes = [], cseen = new Set(), qseen = new Set(); let finalP = null, lastFeed = -1e9, nextSwap = 0, landed = 0;
+  const load = (u, arr) => { const im = new Image(); im.referrerPolicy = 'no-referrer'; im.onload = () => arr.push(u); im.src = u };
+  function feed(now) {
+    if (now - lastFeed < 450) return; lastFeed = now;
+    const L = (window.__mxPairs && window.__mxPairs()) || [];
+    for (const p of L) { if (!cseen.has(p.img)) { cseen.add(p.img); load(p.img, coins) } if (!qseen.has(p.q)) { qseen.add(p.q); load(p.q, quotes) } }
+    if (!finalP && L[0]) finalP = L[0];
+  }
+  const pick = a => a[(Math.random() * a.length) | 0];
 
   // ---- render loop ----
   let W = 0, H = 0;
   const size = () => { W = innerWidth; H = innerHeight; R.setSize(W, H, false); cam.aspect = W / H; cam.updateProjectionMatrix() };
   size(); addEventListener('resize', size);
-  const t0 = performance.now(); let exitAt = 0, exitDur = 900, gone = false, from = null, to = null, flash = 0, revealed = false;
-  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), pos = new THREE.Vector3(), col = new THREE.Color();
-  const fit = (h) => h / (2 * TAN); // distance that shows h world units vertically
+  const t0 = performance.now(); let exitAt = 0, exitDur = 900, gone = false, from = null, to = null, locked = 0, revealed = false;
+  const v = new THREE.Vector3(), w = new THREE.Vector3();
+  const fit = (h) => h / (2 * TAN);
   const bullD = () => Math.max(fit(BULL.h / (W > H ? .42 : .34)), BULL.w / (.78 * 2 * TAN * (W / H)));
-  const FLY = 1.4, LAND = 3.95;
+  const LOCK = 3.4, LAND = LOCK + 1.25; // rings snap at LOCK, the slots land on a real pair at LAND
+  const easeOut = k => 1 - Math.pow(1 - k, 3);
 
   function frame(now) {
     if (gone) return;
     const t = FIX != null && +FIX < 90 ? +FIX : (now - t0) / 1000;
-    // camera: a slow orbit and dolly in, settling straight on as the bull completes
-    const ck = easeIO(clamp(t / 3.85)), D = bullD() * THREE.MathUtils.lerp(1.55, 1, ck), ang = THREE.MathUtils.lerp(-.7, 0, ck);
-    cam.position.set(Math.sin(ang) * D, D * .12 * (1 - ck), Math.cos(ang) * D); cam.lookAt(0, 0, 0);
+    feed(now);
+    // camera: a slow push in, a hint of an angle that straightens out
+    const ck = easeIO(clamp(t / (LOCK + .8))), D = bullD() * THREE.MathUtils.lerp(1.35, 1, ck), ang = THREE.MathUtils.lerp(.22, 0, ck);
+    cam.position.set(Math.sin(ang) * D, D * .06 * (1 - ck), Math.cos(ang) * D); cam.lookAt(0, 0, 0);
     S.fog.near = D * 1.05; S.fog.far = D * 2.3;
-    grid.material.opacity = .55 * clamp(t / .9) * (1 - clamp((t - 4.1) / 1.4) * .55);
+    grid.material.opacity = .55 * clamp(t / .9) * (1 - clamp((t - LOCK - .8) / 1.4) * .5);
 
-    // voxels: spiral in and lock into place
-    const gl = B.glow.array;
-    for (let i = 0; i < N; i++) {
-      const p = P[i], mt = clamp((t - p.d) / FLY), e = easeIO(mt);
-      if (mt <= 0) { pos.copy(p.A); sc.set(.0001, .0001, .0001); q.identity(); col.copy(MINT); gl[i] = 1 }
-      else {
-        const u = 1 - e; // quadratic bezier A → M → B
-        pos.set(u * u * p.A.x + 2 * u * e * p.M.x + e * e * p.B.x, u * u * p.A.y + 2 * u * e * p.M.y + e * e * p.B.y, u * u * p.A.z + 2 * u * e * p.M.z + e * e * p.B.z);
-        q.setFromAxisAngle(p.ax, (1 - ease4(mt)) * p.sp * 3.14);
-        const s = Math.min(1, mt * 5) * (.7 + .3 * e); sc.set(s, s, s);
-        col.copy(MINT).lerp(REST[i], ease3(clamp((mt - .55) / .45))); gl[i] = (1 - ease3(mt)) * .9 + (mt >= 1 ? 0 : Math.max(0, mt - .85) * 3);
-      }
-      m4.compose(pos, q, sc); B.M.setMatrixAt(i, m4); B.M.setColorAt(i, col);
-    }
-    B.M.instanceMatrix.needsUpdate = true; B.M.instanceColor.needsUpdate = true; B.glow.needsUpdate = true;
+    // the roll in: each ring rolls along the floor from its side and decelerates into place
+    // roll in, pause a beat face to face, then snap together
+    const es = easeOut(clamp((t - .3) / 2.3));
+    let dist = t < 2.6 ? 6 + 58 * (1 - es) : t < LOCK - .25 ? 6 + Math.sin(t * 38) * .12 : 6 * (1 - Math.pow(clamp((t - (LOCK - .25)) / .25), 2));
+    if (t >= LOCK) dist = 0;
+    const recoil = t > LOCK ? -Math.sin(clamp((t - LOCK) / .3) * Math.PI) * .7 : 0;
+    RA_.pv.position.x = RA_.home - dist - recoil; RB_.pv.position.x = RB_.home + dist + recoil;
+    RA_.pv.rotation.z = dist / ro; RB_.pv.rotation.z = -dist / ro;               // rolling like coins
+    const wob = Math.sin(t * 7) * .35 * (1 - es) + (t > 2.6 && t < LOCK ? Math.sin(t * 9) * .06 : 0); RA_.pv.rotation.y = wob; RB_.pv.rotation.y = -wob;
+    const hop = Math.abs(Math.sin(dist / 6)) * .9 * (1 - es); RA_.pv.position.y = RB_.pv.position.y = hop;
+    sA.position.x = RA_.pv.position.x - 34; sB.position.x = RB_.pv.position.x + 34;
+    sA.material.opacity = sB.material.opacity = .5 * (1 - es) * clamp(t / .6);
 
-    // eyes ignite on landing, a ring runs across the floor, a mint wave climbs the bull
-    const lk = clamp((t - LAND) / .7);
-    B.GM.visible = lk > 0; B.GM.scale.setScalar(Math.max(.001, backOut(lk)));
-    B.gm.emissiveIntensity = 2.2 + Math.max(0, 1 - (t - LAND) * 1.4) * 6;
-    if (t > LAND && !flash) flash = t;
-    if (flash) {
-      const rk = clamp((t - flash) / 1.8); ring.scale.setScalar(4 + rk * 70); ring.material.opacity = (1 - rk) * .8;
-      const wk = clamp((t - flash) / 1.6); B.mat.userData.u.uWaveY.value = BULL.minY - 3 + wk * (BULL.h + 6); B.mat.userData.u.uWaveA.value = 1.8 * (1 - wk * .6) * (wk < 1 ? 1 : 0);
+    // the snap: the crossing notches drop out so the rings interlock, a flash, a ring across the floor, a wave
+    if (t >= LOCK && !locked) {
+      locked = now;
+      for (const R_ of [RA_, RB_]) { R_.L.forEach((q, i) => { if (q[3]) R_.M.setMatrixAt(i, ZERO) }); R_.M.instanceMatrix.needsUpdate = true }
     }
-    // the bull turns to its pose once assembled, then breathes
-    const tk = easeIO(clamp((t - LAND + .2) / 1.7));
-    B.grp.rotation.y = tk * POSE.ry + (t > LAND + 1.5 ? Math.sin((t - LAND - 1.5) * .5) * .1 : 0);
-    B.grp.rotation.x = tk * POSE.rx;
+    const lk = locked ? (now - locked) / 1000 : -1;
+    const glowAmt = lk >= 0 ? Math.max(0, 1 - lk * 1.6) : 0;
+    for (const R_ of [RA_, RB_]) { R_.glow.array.fill(glowAmt * .9 + (1 - es) * .25); R_.glow.needsUpdate = true }
+    if (lk >= 0) {
+      const rk = clamp(lk / 1.6); ring.scale.setScalar(4 + rk * 75); ring.material.opacity = (1 - rk) * .85;
+      const wk = clamp((lk - .15) / 1.5); mat.userData.u.uWaveY.value = BULL.minY - 3 + wk * (BULL.h + 6); mat.userData.u.uWaveA.value = 1.8 * (1 - wk * .6) * (wk < 1 && wk > 0 ? 1 : 0);
+    }
+    // settle into the hero's pose, then breathe
+    const tk = easeIO(clamp((t - LOCK - .4) / 1.5));
+    G.rotation.y = tk * POSE.ry + (t > LOCK + 1.9 ? Math.sin((t - LOCK - 1.9) * .5) * .1 : 0);
+    G.rotation.x = tk * POSE.rx;
+
     // exit: fly to the hero stage, matching its size and pose
     if (exitAt) {
       const k = clamp((now - exitAt) / exitDur), ek = easeIO(k);
-      if (to) { B.grp.position.lerpVectors(from.p, to.p, ek); B.grp.scale.setScalar(THREE.MathUtils.lerp(from.s, to.s, ek)); B.grp.rotation.y = THREE.MathUtils.lerp(from.ry, POSE.ry, ek); B.grp.rotation.x = THREE.MathUtils.lerp(from.rx, POSE.rx, ek) }
-      // hand over to the hero only once it has drawn a frame, so there is never an empty stage
+      if (to) { G.position.lerpVectors(from.p, to.p, ek); G.scale.setScalar(THREE.MathUtils.lerp(from.s, to.s, ek)); G.rotation.y = THREE.MathUtils.lerp(from.ry, POSE.ry, ek); G.rotation.x = THREE.MathUtils.lerp(from.rx, POSE.rx, ek) }
       const heroOK = !HERO || (HERO.rendered && HERO.rendered()) || now - exitAt > exitDur + 1500;
       if (to && k >= .78 && heroOK && !revealed) { revealed = now; HERO && HERO.reveal() }
       const fo = revealed ? clamp((now - revealed) / 320) : 0;
       cv.style.opacity = to ? 1 - fo : 1 - ek;
-      if (!to) B.grp.scale.setScalar(1 + ek * .6);
+      if (!to) G.scale.setScalar(1 + ek * .6);
       if (k >= 1 && (!to || fo >= 1)) { finish(); return }
     }
     R.render(S, cam);
-    { const show = clamp((t - (LAND - .45)) / .7) * (exitAt ? Math.max(0, 1 - (now - exitAt) / 380) : 1); HL.cycle(now, 460, t > LAND + 1.8); HL.place(B.grp, cam, W, H, HL.has() ? show : 0) }
-    if (!exitAt && (FIX == null || +FIX >= 90) && MX.loaded && ((t > LAND + 2.5 && MX.loaded() >= 2) || t > LAND + 4.2)) MX.close && MX.close();
+
+    // the slots: spin fast while rolling, slow down after the snap, land on a real pair
+    if (coins.length && quotes.length) {
+      if (t < LAND) {
+        const iv = THREE.MathUtils.lerp(55, 360, easeIO(clamp((t - 1.6) / (LAND - 1.6))));
+        if (now >= nextSwap) { ia.src = pick(coins); ib.src = pick(quotes); nextSwap = now + iv }
+      } else if (!landed && finalP) { landed = now; ia.src = finalP.img; ib.src = finalP.q; window.__mxPairNow = finalP }
+    }
+    const show = clamp((t - .5) / .5) * (exitAt ? Math.max(0, 1 - (now - exitAt) / 380) : 1);
+    G.updateMatrixWorld();
+    [[sa, ia, RA_], [sb, ib, RB_]].forEach(([el2, im, R_]) => {
+      R_.pv.getWorldPosition(v); const d = cam.position.distanceTo(v); w.copy(v).project(cam);
+      const px = (w.x * .5 + .5) * W, py = (-w.y * .5 + .5) * H, dia = 2 * HOLE * G.scale.x / (2 * d * TAN) * H;
+      const sx = Math.max(.05, Math.abs(Math.cos(R_.pv.rotation.y)));
+      el2.style.transform = `translate(${px.toFixed(1)}px,${py.toFixed(1)}px) translate(-50%,-50%) scaleX(${sx.toFixed(3)}) rotate(${(-R_.pv.rotation.z * 57.3).toFixed(1)}deg)`;
+      el2.style.width = el2.style.height = Math.max(0, dia).toFixed(1) + 'px';
+      const fast = t < LAND ? clamp(1 - (t - LOCK) / 1.2) : 0, pop = landed ? clamp((now - landed) / 420) : 1;
+      im.style.filter = fast > .05 ? `blur(${(fast * 1.6).toFixed(2)}px)` : '';
+      im.style.transform = landed ? `scale(${(.7 + .3 * backOut(pop)).toFixed(3)})` : '';
+    });
+    box.style.opacity = coins.length && quotes.length ? show : 0;
+    if (!exitAt && (FIX == null || +FIX >= 90) && MX.loaded && ((t > LAND + 1.6 && MX.loaded() >= 2) || t > LAND + 3.5)) MX.close && MX.close();
     requestAnimationFrame(frame);
   }
   function finish() {
@@ -226,16 +268,14 @@ function intro() {
       if (exitAt) return; exitAt = performance.now(); exitDur = fast ? 900 : 1400;
       el.classList.add('leaving');
       const t = (exitAt - t0) / 1000;
-      // if skipped before the bull exists, just fade
       const stageEl = $('#hb'), home = MX.isHome ? MX.isHome() : true;
-      if (t < LAND - .1 || !stageEl || !home) { to = null; HERO && HERO.show(); return }
-      for (let i = 0; i < N; i++) { m4.makeTranslation(BULL.V[i][0], BULL.V[i][1], BULL.V[i][2]); B.M.setMatrixAt(i, m4) }
+      if (t < LOCK + .3 || !stageEl || !home) { to = null; HERO && HERO.show(); return }
       const r = stageEl.getBoundingClientRect();
-      const D = cam.position.z, halfH = D * TAN, halfW = halfH * cam.aspect;
+      const Dz = cam.position.z, halfH = Dz * TAN, halfW = halfH * cam.aspect;
       const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
       const tx = (cx / W * 2 - 1) * halfW + cam.position.x, ty = (1 - cy / H * 2) * halfH + cam.position.y;
       const curPx = BULL.h / (2 * halfH) * H, wantPx = HERO && HERO.px ? HERO.px() : r.height * heroFill();
-      from = { p: B.grp.position.clone(), s: B.grp.scale.x, ry: B.grp.rotation.y, rx: B.grp.rotation.x };
+      from = { p: G.position.clone(), s: G.scale.x, ry: G.rotation.y, rx: G.rotation.x };
       to = { p: new THREE.Vector3(tx, ty, 0), s: wantPx / curPx };
       HERO && HERO.start();
     }
