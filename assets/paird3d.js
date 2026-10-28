@@ -202,10 +202,13 @@ function intro() {
     if (exitAt) {
       const k = clamp((now - exitAt) / exitDur), ek = easeIO(k);
       if (to) { B.grp.position.lerpVectors(from.p, to.p, ek); B.grp.scale.setScalar(THREE.MathUtils.lerp(from.s, to.s, ek)); B.grp.rotation.y = THREE.MathUtils.lerp(from.ry, POSE.ry, ek); B.grp.rotation.x = THREE.MathUtils.lerp(from.rx, POSE.rx, ek) }
-      cv.style.opacity = to ? (k < .78 ? 1 : 1 - (k - .78) / .22) : 1 - ek;
-      if (to && k >= .78 && !revealed) { revealed = true; HERO && HERO.reveal() }
+      // hand over to the hero only once it has drawn a frame, so there is never an empty stage
+      const heroOK = !HERO || (HERO.rendered && HERO.rendered()) || now - exitAt > exitDur + 1500;
+      if (to && k >= .78 && heroOK && !revealed) { revealed = now; HERO && HERO.reveal() }
+      const fo = revealed ? clamp((now - revealed) / 320) : 0;
+      cv.style.opacity = to ? 1 - fo : 1 - ek;
       if (!to) B.grp.scale.setScalar(1 + ek * .6);
-      if (k >= 1) { finish(); return }
+      if (k >= 1 && (!to || fo >= 1)) { finish(); return }
     }
     R.render(S, cam);
     { const show = clamp((t - (LAND - .45)) / .7) * (exitAt ? Math.max(0, 1 - (now - exitAt) / 380) : 1); HL.cycle(now, 460, t > LAND + 1.8); HL.place(B.grp, cam, W, H, HL.has() ? show : 0) }
@@ -285,7 +288,7 @@ function hero() {
   addEventListener('mx:pulse', e => pulse(e.detail?.kind || 'new'));
 
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(1, 1, 1), pos = new THREE.Vector3(), inv = new THREE.Matrix4(), pl = new THREE.Vector3();
-  let tShow = performance.now(), last = tShow, wave = null;
+  let tShow = performance.now(), last = tShow, wave = null, drawn = false;
   try { R.compile(S, cam) } catch (e) { }
   function frame(now) {
     if (!alive) return;
@@ -321,7 +324,7 @@ function hero() {
       tor.material.opacity = .75 + Math.max(0, 1 - k * 2) * .25; tor.scale.setScalar(1 + Math.max(0, 1 - k * 2) * .04);
       if (k >= 1) { wave = null; u.uWaveA.value = 0 }
     } else B.gm.emissiveIntensity = 2.2 + Math.sin(t * 2.2) * .4;
-    R.render(S, cam);
+    R.render(S, cam); drawn = true;
     HH.cycle(now, performance.now() < manualUntil ? 1e12 : 3400, false); HH.place(B.grp, cam, W, H, HH.has() && cv.style.opacity === '1' ? 1 : 0);
   }
   requestAnimationFrame(frame);
@@ -329,6 +332,7 @@ function hero() {
     start() { if (!shown) { shown = true; tShow = performance.now(); size() } },
     reveal() { cv.style.opacity = '1'; cv.closest('.stage')?.classList.add('live') },
     show() { this.start(); this.reveal() },
+    rendered: () => drawn,
     px() { return BULL.h / (2 * D() * TAN) * (H || cv.getBoundingClientRect().height) },
     pulse,
   };
