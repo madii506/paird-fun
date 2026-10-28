@@ -1,0 +1,5 @@
+{
+  "name": "aura-pad",
+  "private": true,
+  "engines": { "node": "22.x" }
+}

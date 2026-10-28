@@ -1,0 +1,3 @@
+{
+  "functions": { "api/img.js": { "maxDuration": 30 } }
+}
